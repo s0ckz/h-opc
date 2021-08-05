@@ -17,6 +17,7 @@ namespace Hylasoft.Opc.Da
   /// </summary>
   public partial class DaClient : IClient<DaNode>
   {
+    private readonly DaClientOptions _options = new DaClientOptions();
     private readonly URL _url;
     private OpcDa.Server _server;
     private long _sub;
@@ -31,22 +32,43 @@ namespace Hylasoft.Opc.Da
     /// <param name="serverUrl">The url of the server to connect to. WARNING: If server URL includes
     /// spaces (ex. "RSLinx OPC Server") then pass the server URL in to the constructor as an Opc.URL object
     /// directly instead.</param>
-    public DaClient(Uri serverUrl)
+    public DaClient(Uri serverUrl) : this(new URL(serverUrl.AbsolutePath)
     {
-      _url = new URL(serverUrl.AbsolutePath)
-      {
-        Scheme = serverUrl.Scheme,
-        HostName = serverUrl.Host
-      };
+      Scheme = serverUrl.Scheme,
+      HostName = serverUrl.Host
+    })
+    {
     }
 
     /// <summary>
     /// Initialize a new Data Access Client
     /// </summary>
     /// <param name="serverUrl">The url of the server to connect to</param>
-    public DaClient(URL serverUrl)
+    public DaClient(URL serverUrl) : this(serverUrl, null)
+    {
+    }
+
+    /// <summary>
+    /// Initialize a new Data Access Client
+    /// </summary>
+    /// <param name="serverUrl">The url of the server to connect to</param>
+    /// <param name="options">custom options to use with ua client</param>
+    public DaClient(URL serverUrl, DaClientOptions options)
     {
       _url = serverUrl;
+
+      if (options != null)
+      {
+        _options = options;
+      }
+    }
+
+    /// <summary>
+    /// Options to configure the DA client session
+    /// </summary>
+    public DaClientOptions Options
+    {
+      get { return _options; }
     }
 
     /// <summary>
@@ -91,7 +113,16 @@ namespace Hylasoft.Opc.Da
       if (Status == OpcStatus.Connected)
         return;
       _server = new OpcDa.Server(new Factory(), _url);
-      _server.Connect();
+
+      if (_options.Credentials != null)
+      {
+        _server.Connect(new ConnectData(_options.Credentials));
+      }
+      else
+      {
+        _server.Connect();
+      }
+
       var root = new DaNode(string.Empty, string.Empty);
       RootNode = root;
       AddNodeToCache(root);
